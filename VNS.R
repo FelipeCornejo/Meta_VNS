@@ -5,9 +5,9 @@ source("essentials.r")
 source("f_vecindario.r")
 
 #SETEO DE INICIO DE META
-data <- read_coords("./data/coords38.txt")
+data <- read_coords("./data/coords194.txt")
 n <- nrow(data)
-best_known <- 6656
+best_known <- 9352
 
 #Limite de tiempo de busqueda
 #time_limit <- 300
@@ -93,11 +93,11 @@ while (iteracion < 21){
   iteracion <- iteracion + 1
 }
 
-box38_fit <- boxplot(bests_solutions_fit)
-box38_gap <- boxplot(gaps_bests,range=100)
+box194_fit <- boxplot(bests_solutions_fit)
+box194_gap <- boxplot(gaps_bests,range=100)
 
 k_sums_norm <- (k_sums_1 - k_sums_2)/k_sums_1
 #box29_sums <- boxplot(k_sums_norm)
 
 
-bests38 <- bests_solutions_fit
+bests194 <- bests_solutions_fit
