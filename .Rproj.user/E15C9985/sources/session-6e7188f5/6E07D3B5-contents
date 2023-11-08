@@ -1,0 +1,201 @@
+library(ggplot2)
+
+read_coords <- function(name){
+  data <- read.table(name);
+  return(data);
+}
+
+fitness <- function(sol){
+  total <- 0;
+  n <- length(sol);
+  for(i in 1:(n-1)){
+    # Se calculan la distancia entre el los puntos consecutivos
+    dist_last_points <- sqrt((data[sol[i+1],"V1"] - data[sol[i],"V1"])^2 + (data[sol[i+1],"V2"] - data[sol[i],"V2"])^2);
+    # Se añaden a la suma total de distancia
+    total <- total + dist_last_points;
+  }
+  dist_last_points <- sqrt((data[sol[1],"V1"] - data[sol[n],"V1"])^2 + (data[sol[1],"V2"] - data[sol[n],"V2"])^2);
+  total <- total + dist_last_points;
+  return(total);
+}
+
+make_vecindarios <- function(sol){
+  vecinos <- list()
+  n <- length(sol)
+  #operation <- sample(1:3,1)
+  operation <- 1
+  # Operación de swap
+  if (operation == 1){
+    for (i in 1:(n-1)) {
+      for (j in (i+1):n){
+        temp <- sol[i]
+        sol[i] <- sol[j]
+        sol[j] <- temp
+        vecinos <- c(vecinos, list(sol))
+      }
+    }
+  }
+  
+  else if (operation == 2){
+    # Operación de inversión
+    for (i in 1:(n - 1)) {
+      for (j in (i + 1):n) {
+        vecino <- sol
+        vecino[i:j] <- rev(sol[i:j])
+        vecinos <- c(vecinos, list(vecino))
+      }
+    }  
+  }
+  
+  else {
+    # Operación de inserción
+    for (i in 1:(n + 1)) {
+      for (j in 1:n) {
+        vecino <- numeric(n + 1)
+        vecino[1:i - 1] <- sol[1:i - 1]
+        vecino[i] <- sol[j]
+        vecino[(i + 1):(n + 1)] <- sol[i:n]
+        vecinos <- c(vecinos, list(vecino))
+      }
+    }
+  }
+  return(vecinos)
+}
+
+best_Improvment <- function(fitness, make_vecindario, sol){
+  repeat {
+    sol_retorno <- sol
+    vecinos <- make_vecindario(sol)
+    mejor_vecino <- NULL
+    opti <- Inf
+    #encontrar mejor vecino
+    for (vecino in vecinos){
+      fitness_vecino <- fitness(vecino)
+      if (fitness_vecino < opti){
+        opti <- fitness_vecino
+        mejor_vecino <- vecino
+      }
+    }
+    if (fitness(mejor_vecino) >= fitness(sol_retorno)){
+      return(sol_retorno)
+    }
+    else {
+      sol <- mejor_vecino
+    }
+  }
+}
+
+first_Improvment <- function (fitness,sol){
+  new_sol <- sol
+  while (fitness(sol) >= fitness(new_sol)){
+    new_sol <- sol
+    i <- 0
+    while (fitness(sol) <= fitness(new_sol) && i < (length(sol)^2)){
+      
+      #Crear un vecino.
+      p <- sample(1:length(sol),1)
+      m <- sample(1:length(sol),1)
+      
+      temp <- new_sol[p]
+      new_sol[p] <- new_sol[m]
+      new_sol[m] <- temp
+      
+      if (fitness(new_sol)<fitness(sol)){
+        return(new_sol)
+      }
+      i <- i+1
+    }
+  }
+  return(new_sol)
+}
+
+change_Neiberhud <- function(sol,new_sol,k){
+  if (fitness(new_sol) < fitness(sol)){
+    sol <- new_sol
+    k <<- 1
+  }
+  else {
+    k <<- k+1
+  }
+  return(sol)
+}
+
+shake <- function(sol){
+  n <- length(sol)
+  position <- sample(1:n,1)
+  temp <- sol[position]
+  sol[position] <- sol[1]
+  sol[1] <- temp
+  return (sol)
+}
+
+#Registro de la data del oeste del sahara (29 ciudades)
+data <- read_coords("coords194.txt")
+k_max <- 2
+
+
+iteracion <- 0
+best_list <- list()
+fitness_list <- list()
+fitness_inital <- list()
+  
+while (iteracion < 31){
+  print(iteracion)
+  fitness_historico <- list()
+  sol_historico <- list()
+  sol <- sample(1:dim(data)[1])
+  fitness_inital <- c(fitness_inital, fitness(sol))
+  
+  #VNS
+  time_limit <- 300
+  stop <- Sys.time()
+  while (as.numeric(difftime(Sys.time(), stop, units = "secs")) < time_limit){
+    k <- 1
+    while (k <= k_max) {
+      #print(k)
+      sol_shaked <- shake(sol)
+      #best_sol <- best_Improvment(fitness,make_vecindarios,sol_shaked)
+      best_sol <- first_Improvment(fitness,sol_shaked)
+      sol <- change_Neiberhud(sol,best_sol,k)
+      
+      fitness_historico <- c(fitness_historico, fitness(best_sol))
+      sol_historico <- c(sol_historico, list(sol))
+    }
+  }
+  best_fitness_end <- min(unlist(fitness_historico))
+  best_list <- c(best_list, best_fitness_end)
+  best_position_end <- match(best_fitness_end,fitness_historico)
+  best_solution_end <- sol_historico[best_position_end]
+  iteracion <- iteracion + 1
+  
+  #Graficos
+  valores <- unlist(fitness_historico)
+  # Crear un gráfico de dispersión
+  plot(valores, type = "o", pch = 16, col = "blue", xlab = "Índice", ylab = "Valor", main = "Gráfico de Valores")
+  
+  # Agregar líneas conectando los puntos
+  lines(valores, type = "o", pch = 16, col = "blue")
+  }
+
+
+#n <- length(sol)
+#i <- 1
+#end_map <- list()
+#while (i<n){
+#  end_map <- c(end_map, data[best_solution_end[i]])
+#  i <- i+1
+#}
+
+#ggplot(end_map, aes(x=V1, y=V2))+
+#  geom_point() +
+#  ggtitle("Grafico de mejor Camino encontrado")
+
+#coords29_bests_BestImp <- best_list
+#coords29_bests_FirstImp <- best_list
+#sahara_BestImp <- boxplot(unlist(coords29_bests_FirstImp)) #2 horas y media.
+
+coords194_bests_BestImo <- best_list
+sahara_BestImp <- boxplot(unlist(fitness_historico)) #2 horas y media.
+
+
+

@@ -1,0 +1,240 @@
+readQAP<-function(name){ 
+  a <- read.delim(name,header=FALSE, sep ="")
+  n<-as.integer(a[1,1])
+  fl<-a[2:(n+1),1:n]
+  dis<-a[(n+2):(n+n+1),1:n]
+  d <- list(n=n, f= fl, d = dis)
+  return(d)
+}
+
+evaluarQAP<-function(sol, f, d){
+  
+  acum<-0
+  n<-length(sol)
+  for(i in 1:n){
+    for(j in 1:n){
+      acum = acum + f[i,j]*d[sol[i],sol[j]]   
+    }
+  }
+  return(acum)
+}
+
+swap<-function(sol,i,j){
+  piv<-sol[i]
+  sol[i]<-sol[j]
+  sol[j]<-piv
+  return(sol)
+}
+
+#Agregado por Seba
+insercion<-function(sol,i,j){#i de 1 a lenth(sol), j de 0 a length(sol)-1
+  ele<-sol[i]
+  a<-sol[-i]
+  sol<-append(a,ele,after=j)
+  return(sol)
+}
+
+invertir<-function(sol,i,j){
+  a<-sol[i:j]
+  a<-rev(a)
+  b<-sol[-(i:j)]
+  sol<-append(b,a,after=i)
+  return(sol)
+}
+
+#Mutación a traves de swap en la cabecera de la solucion
+mutation<-function(sol){
+  pos <- sort(sample(1:length(sol$sol),2))
+  temp <- sol$sol[pos[1]] #valor de la posicion 1 en la solucion
+  sol$sol[pos[1]] <- sol$sol[pos[2]]
+  sol$sol[pos[2]] <- temp
+  return(sol)
+  }
+
+
+
+# LABORATORIO 4 - Metaheurísticas de Población - 26-10-2023
+# Implementar algoritmo genético para el problema QAP en R,
+# usando la plantilla de código entregada a continuación
+# (Puede modificarla si lo desea)
+# Hacer un gráfico de cajas con la evolución del fitness de la población
+# a través de las generaciones
+
+inicializar<-function(n,f,d,tamano){
+  soluciones <- list()
+  suma <- 0
+  for (i in 1:tamano){
+    sol <- sample(1:n)
+    fitness <- evaluarQAP(sol,f,d)
+    suma <- suma + fitness
+    solucion <- list(sol=sol, fitness=fitness,prob=0)
+    soluciones <- append(soluciones,list(solucion))
+  }
+  return (soluciones)
+}
+
+get_probs <- function(soluciones,suma){
+  for (j in 1:length(soluciones)){
+    soluciones[[j]]$prob <- 1-(soluciones[[j]]$fitness/suma)
+  }
+  return(soluciones)
+}
+
+evaluar<-function(soluciones,f,d){
+  tamano <- length(soluciones)
+  suma <- 0
+ for (i in 1:tamano){
+   soluciones[[i]]$fitness <- evaluarQAP(soluciones[[i]]$sol,f,d)
+   suma <- soluciones[[i]]$fitness + suma
+ }
+  soluciones <- get_probs(soluciones,suma)
+  return (soluciones)
+}
+#peso = 1- poblacion_normalizada
+seleccion<-function(poblacion,n){ #Este n corresponde al tamaño de la poblacion, no el de la instancia
+  probs <- c()
+  for (i in 1:length(poblacion)){
+    probs <- c(probs, poblacion[[i]]$probs)
+  }
+  elegidos <- sample(poblacion,n,prob=probs)
+  return (elegidos)
+}
+
+get_cortes<- function(poblacionSelecta, splitPos, largoSolucion, largoPoblacion){
+  padres <- list()
+  hijos <- list()
+  for(i in 1:largoPoblacion){
+    padres <- append(padres, list(poblacionSelecta[[i]]$sol[1:splitPos]))
+    hijos <- append(hijos, list(poblacionSelecta[[i]]$sol[(splitPos+1):largoSolucion]))
+  }
+  return (list(padres = padres, hijos = hijos))
+}
+
+recombinacion <- function(poblacionSelecta, largoSoluciones, largoPoblacion,f,d) {
+  posSplit <- largoSoluciones %/% 2
+  cortes <- get_cortes(poblacionSelecta, posSplit, largoSoluciones, largoPoblacion)
+  padres <- cortes[1]$padres
+  hijos <- cortes[2]$hijos
+  combinados <- list()
+  suma <- 0
+  for (i in 1:largoPoblacion) {
+    if (i != largoPoblacion) {
+      union <- c(padres[[i]], hijos[[i + 1]])
+    } else {
+      union <- c(padres[[i]], hijos[[1]])
+    }
+    # Verificar y corregir elementos repetidos
+    if (length(union) != length(unique(union))) {
+      unique_union <- unique(union)
+      repeated_elements <- union[duplicated(union)]
+      faltan <- setdiff(sample(1:largoSoluciones), unique_union)
+      union <- c(unique_union, faltan)
+    }
+    # Agregar formato con fitness y probs
+    fitness <- evaluarQAP(union, f,d)
+    suma <- suma + fitness
+    solucion <- list(sol = union, fitness = fitness, prob = 0)
+    combinados <- append(combinados, list(solucion))
+  }
+  combinados <- get_probs(combinados,suma)
+  return(combinados)
+}
+
+
+#porcentaje es un número entre 0 y 100 el cual indica la cantidad de mutaciones a realizar
+mutacion<-function(soluciones,porcentaje,f,d){
+  n <- length(soluciones)
+  soluAux <- soluciones
+  mutar <- ceiling(n * porcentaje / 100)
+  sol_a_mutar <- sample(1:n,mutar)
+  sum <- 0
+  for (i in sol_a_mutar){
+    soluAux[[i]] <- mutation(soluAux[[i]])
+    soluAux[[i]]$fitness <- evaluarQAP(soluAux[[i]]$sol,f,d)
+  }
+  for(j in 1:n){
+    sum <- sum + soluAux[[j]]$fitness 
+  }
+  soluAux <- get_probs(soluAux,sum)
+  return (soluAux)
+}
+
+genetico<-function(n,f,d,tam_pobla, max_iter){
+  poblacion<-inicializar(n,f,d,tam_pobla)
+  poblacionSol<-evaluar(poblacion,f, d)
+  i=0
+  listaPoblaciones <- list()
+  while(i < max_iter){
+    # Generación i
+    padres<-seleccion(poblacion,tam_pobla)
+    hijos<-recombinacion(padres, n, tam_pobla, f, d)
+    hijos2<-mutacion(hijos, tam_pobla, f, d)
+    #poblacion <- hijos2
+    
+    poblacion <- evalFinal(poblacion,hijos,hijos2,tam_pobla)
+    fitness_poblacion <- c()
+    for (individuo in poblacion) {
+      fitness_poblacion <- c(fitness_poblacion, individuo$fitness)
+    }
+    listaPoblaciones[[i+1]] <- list(fitness = fitness_poblacion)
+    i=i+1
+  }
+  return(list(poblacionMejor = poblacion, listadoPoblaciones = listaPoblaciones))
+}
+
+evalFinal<- function(poblacion,hijos,hijos2,tamPoblacion){
+  mejorPoblacion <- poblacion[[1]]
+  mejorHijos <- hijos[[1]]
+  mejorHijos2 <- hijos2[[1]]
+
+  for(j in 1:tamPoblacion){
+    if(poblacion[[j]]$fitness < mejorPoblacion$fitness){
+      mejorPoblacion <- poblacion[[j]]
+    }
+    if(hijos[[j]]$fitness < mejorHijos$fitness){
+      mejorHijos <- hijos[[j]]
+    }
+    if(hijos2[[j]]$fitness < mejorHijos2$fitness){
+      mejorHijos2 <- hijos2[[j]]
+    }
+  }
+  listaMejores <- list(mejorPoblacion,mejorHijos,mejorHijos2)
+  x <- tamPoblacion - 3
+  for(i in 1:x){
+    p <- sample(1:tamPoblacion,1)
+    listaMejores <- append(listaMejores, hijos2[p])
+  }
+  return (listaMejores)
+  
+}
+
+library(tictoc)
+#leer instancia, crear y evaluar una solucion inicial
+
+instancia<-readQAP("./../Alg_genetico/Meta_Genetic-Algorithm/geneticoQAP.dat")
+
+#instancia<-readQAP("/home/guest/Descargas/geneticoQAP.dat")
+#instancia<-readQAP("/home/fabian/Escritorio/Meta/Meta_Genetic-Algorithm/geneticoQAP.dat")
+
+sol<-c(1:instancia$n)
+fitness<-evaluarQAP(sol,instancia$f,instancia$d)
+set.seed(101)
+geneQAP <- genetico(instancia$n, instancia$f, instancia$d,50, 5001)
+
+
+generar_boxplot <- function(poblaciones, nom_instancia) {
+  df <- data.frame(matrix(nrow = length(poblaciones[[1]]$fitness), ncol = length(poblaciones)))
+  for (i in 1:length(poblaciones)) {
+    fila <- c()
+    for (j in 1:length(poblaciones[[1]]$fitness)) {
+      fila <- c(fila, poblaciones[[i]]$fitness[j])
+    }
+    df[, i] <- fila
+  }
+  nombre <- gsub(" ", "", paste("boxplot_salida_genetico_", nom_instancia, ".png"))
+  png(file = nombre, width = 1370, height = 850)
+  boxplot(df, xlab = "iteraciones", ylab = "fitness", main = "Genético")
+  dev.off()
+}
+
+generar_boxplot(geneQAP$listadoPoblaciones,"5000")

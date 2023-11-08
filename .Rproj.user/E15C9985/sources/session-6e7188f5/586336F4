@@ -1,0 +1,28 @@
+{
+    "id": "586336F4",
+    "path": null,
+    "project_path": null,
+    "type": "object_explorer",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1699411329526.0,
+    "source_on_save": false,
+    "relative_order": 6,
+    "properties": {
+        "id": "c81187355bc04e90a24fa120cb298256",
+        "name": "box",
+        "title": "box",
+        "language": "R",
+        "source_window_id": "",
+        "Source": "Source"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1699395931,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1699411329526,
+    "read_only": false,
+    "read_only_alternatives": []
+}
